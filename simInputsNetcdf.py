@@ -51,11 +51,11 @@ class SimInputsNetcdf:
         while self.piv < len(self.times) and self.sTime - 86400*self.times[self.piv] > 1:
             self.piv = self.piv + 1
 
-        print("Current speed: "+str(self.currentSpeeds[self.piv]))
-        print("Current dir: " + str(self.currentDirs[self.piv]))
-        print("Ambient o2 5m: " + str(self.o2ambVal5[self.piv]))
-        #print("Feeding: " + str(self.feedingVal[self.piv]))
-        print("Temperature 5m: " + str(self.temperatures5[self.piv]))
+        #print("Current speed: "+str(self.currentSpeeds[self.piv]))
+        #print("Current dir: " + str(self.currentDirs[self.piv]))
+        #print("Ambient o2 5m: " + str(self.o2ambVal5[self.piv]))
+        ##print("Feeding: " + str(self.feedingVal[self.piv]))
+        #print("Temperature 5m: " + str(self.temperatures5[self.piv]))
 
     def advance(self, t):
         # Check if it is time to advance to next data point:

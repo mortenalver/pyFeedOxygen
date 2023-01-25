@@ -3,6 +3,11 @@ import math
 
 class Advect:
 
+    varyAmbient = False
+    ambRedMult = 0.
+    ambRedCenter = []
+    dsVector = []
+
     def __init__(self, cageDims):
         self.advect = np.zeros(cageDims)
         self.diffus = np.zeros(cageDims)
@@ -83,9 +88,17 @@ class Advect:
 
         return sum
 
+    def setVaryAmbient(self, varyAmbient, ambRedMult, ambRedCenter, dsVector):
+        self.varyAmbient = varyAmbient
+        self.ambRedMult = ambRedMult
+        self.ambRedCenter = ambRedCenter
+        self.dsVector = dsVector
+
 
     def calcAdvectAndDiff(self, cageDims, field, dxy, dz, mask, sinkingSpeed, diffKappa, diffKappaZ,
                           currentSpeed, currentOffset, ambientValue, dt):
+
+        ambientValueHere = np.zeros(ambientValue.shape)
 
         # Set up neighbourhood variables:
         c_h = 0.
@@ -109,28 +122,40 @@ class Advect:
                     current[1, 1] = currentSpeed[i,j+1,k,1] + currentOffset[1]
                     current[2, 1] = currentSpeed[i,j,k+1,2] + currentOffset[2] + sinkingSpeed
 
+                    # If appropriate, apply ambient value reduction:
+                    ambientValueHere[:] = ambientValue[:]
+                    if self.varyAmbient:
+                        # Check if we are near an edge, otherwise the ambient value has no effect:
+                        if (i<2 or j<2 or i>=cageDims[0]-2 or j>=cageDims[1]-2 or k<2 or k>=cageDims[2]-2):
+                            vecHere = [i-self.ambRedCenter[0], j-self.ambRedCenter[1]]
+                            dotProd = vecHere[0] * self.dsVector[0] + vecHere[1] * self.dsVector[1]
+                            ambRedValue = 0
+                            if (dotProd < 0):
+                                ambRedValue = -dotProd * self.ambRedMult * dxy
+                            ambientValueHere -= ambRedValue
+
                     # Define cell neighbourhood:
                     c_h = field[i,j,k]
-                    x_nb[0] = self.pickVal(cageDims, field, ambientValue, i-2, j, k)
-                    x_nb[1] = self.pickVal(cageDims, field, ambientValue, i-1, j, k)
-                    x_nb[2] = self.pickVal(cageDims, field, ambientValue, i+1, j, k)
-                    x_nb[3] = self.pickVal(cageDims, field, ambientValue, i+2, j, k)
+                    x_nb[0] = self.pickVal(cageDims, field, ambientValueHere, i - 2, j, k)
+                    x_nb[1] = self.pickVal(cageDims, field, ambientValueHere, i - 1, j, k)
+                    x_nb[2] = self.pickVal(cageDims, field, ambientValueHere, i + 1, j, k)
+                    x_nb[3] = self.pickVal(cageDims, field, ambientValueHere, i + 2, j, k)
 
-                    y_nb[0] = self.pickVal(cageDims, field, ambientValue, i, j-2, k)
-                    y_nb[1] = self.pickVal(cageDims, field, ambientValue, i, j-1, k)
-                    y_nb[2] = self.pickVal(cageDims, field, ambientValue, i, j+1, k)
-                    y_nb[3] = self.pickVal(cageDims, field, ambientValue, i, j+2, k)
+                    y_nb[0] = self.pickVal(cageDims, field, ambientValueHere, i, j - 2, k)
+                    y_nb[1] = self.pickVal(cageDims, field, ambientValueHere, i, j - 1, k)
+                    y_nb[2] = self.pickVal(cageDims, field, ambientValueHere, i, j + 1, k)
+                    y_nb[3] = self.pickVal(cageDims, field, ambientValueHere, i, j + 2, k)
 
-                    z_nb[0] = self.pickVal(cageDims, field, ambientValue, i, j, k-2)
-                    z_nb[1] = self.pickVal(cageDims, field, ambientValue, i, j, k-1)
-                    z_nb[2] = self.pickVal(cageDims, field, ambientValue, i, j, k+1)
-                    z_nb[3] = self.pickVal(cageDims, field, ambientValue, i, j, k+2)
+                    z_nb[0] = self.pickVal(cageDims, field, ambientValueHere, i, j, k - 2)
+                    z_nb[1] = self.pickVal(cageDims, field, ambientValueHere, i, j, k - 1)
+                    z_nb[2] = self.pickVal(cageDims, field, ambientValueHere, i, j, k + 1)
+                    z_nb[3] = self.pickVal(cageDims, field, ambientValueHere, i, j, k + 2)
                     if k==0:
                         z_nb_diff[0] = c_h  # No diffusion through surface
                     else:
                         z_nb_diff[0] = z_nb[1]
                     if k==cageDims[2]-1:
-                        z_nb_diff[1] = ambientValue[k]
+                        z_nb_diff[1] = ambientValueHere[k]
                     else:
                         z_nb_diff[1] = z_nb[2]
 
@@ -150,30 +175,30 @@ class Advect:
 
 
 
-# Test mass conservation of superbee advecter:
-advy = Advect((5,5,5))
-dt = 0.1
-mx = 20
-values = np.zeros((mx,))
-for i in range(5,mx-5):
-    values[i] = 1.#2.+math.sin(i*0.5)
-v2 = values
-
-curr = np.zeros((mx+1,))
-for i in range(0, mx+1):
-    curr[i] = 1.5
-curr[10:-1] = 1.
-
-print(values)
-print(np.sum(values))
-
-# Run advection step:
-for j in range(0,4):
-    for i in range(2, mx-2):
-        adv = advy.superbeeAdv(dt, 1, values[i-2], values[i-1], values[i],
-                               values[i+1], values[i+2], curr[i], curr[i+1])
-        v2[i] = values[i] + dt*adv
-    values[:] = v2[:]
-
-print(v2)
-print(np.sum(v2))
+# # Test mass conservation of superbee advecter:
+# advy = Advect((5,5,5))
+# dt = 0.1
+# mx = 20
+# values = np.zeros((mx,))
+# for i in range(5,mx-5):
+#     values[i] = 1.#2.+math.sin(i*0.5)
+# v2 = values
+#
+# curr = np.zeros((mx+1,))
+# for i in range(0, mx+1):
+#     curr[i] = 1.5
+# curr[10:-1] = 1.
+#
+# print(values)
+# print(np.sum(values))
+#
+# # Run advection step:
+# for j in range(0,4):
+#     for i in range(2, mx-2):
+#         adv = advy.superbeeAdv(dt, 1, values[i-2], values[i-1], values[i],
+#                                values[i+1], values[i+2], curr[i], curr[i+1])
+#         v2[i] = values[i] + dt*adv
+#     values[:] = v2[:]
+#
+# print(v2)
+# print(np.sum(v2))

@@ -172,7 +172,7 @@ def saveEnsembleState(ncfile, time, mask, X, X_a, X_twin, M, dev, exactDev, K, X
     fVar = ncfile.variables[ensembleExactDeviationName]
     fVar[index, ...] = np.transpose(exactDev, (1, 0))
     fVar = ncfile.variables[ensembleKName]
-    print(K.shape)
+    #print(K.shape)
     fVar[index, 0:K.shape[1], 0:K.shape[0]] = np.transpose(K, (1, 0))
     fVar = ncfile.variables[ensembleLocName]
     fVar[index, 0:Xloc.shape[1], 0:Xloc.shape[0]] = np.transpose(Xloc, (1, 0))

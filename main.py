@@ -12,6 +12,7 @@ import gaussmarkov
 import ensembleKalmanFilter
 import measurements
 import currentfields
+import currentMagic
 import simInputsNetcdf
 import scipy.interpolate
 
@@ -23,15 +24,15 @@ def current_milli_time():
 
 # Save information:
 saveDir = "./bjoroya/"
-simNamePrefix = "bjoroya_27j_1_"
+simNamePrefix = "bjoroya_22_magic_"
 
 # Duration of simulation (seconds)
-t_end = 24*3600
+t_end = 8*3600
 
 # Start time:
 initYear = 2022
 initMonth = 6
-initDate = 27
+initDate = 22
 initHour = 0
 initMin = 0
 initSec = 0
@@ -53,7 +54,14 @@ ensembleInflationFactor = 1.05
 localizationDistM = 20 # Distance where covariances are scaled down by 50%
 localizationZMultiplier = 3 # Multiplier for vertical distance in localization calculation
 measurementsToUse = measurements.getSensorsToAssimilateBjoroya()
+varyAmbient = True # Reduction in ambient values towards the rest of the farm
+addRedMult = 0.015 # Scale factor for reduction in ambient values
+o2AffinityProfile = 'halfvert'  # flat / vert / halfvert
 
+useCurrentMagic = True
+currentMagicField = "C:/Users/alver/OneDrive - NTNU/prosjekt/O2_Bjørøya/currentmagic/currents_bjoroya2.nc"
+if useCurrentMagic:
+    cmg = currentMagic.CurrentMagic(currentMagicField)
 
 includeTwin = False # If true, run last ensemble member as a twin. Twin receives no EnKF updates, and is used to provide measurements
 
@@ -109,30 +117,28 @@ simName = simNamePrefix+str(rank).zfill(2)
 enKFInterval = 60 # Seconds (measurements come at 60 s interval)
 
 
-
 # Storage intervals (seconds):
 storeIntervalScalars = 60
 storeIntervalFields = 600
 txtUpdateInterval = 200
 
 
-
 # Common settings:
 rad = 25.#55.0
 depth = 25.0
 totDepth = 25.0
-dxy = 4.0 # Horizontal resolution
+dxy = 3.0 # Horizontal resolution
 dz = dxy # Vertical resolution
 modelDim = 2*(rad+4*dxy) #60.#120.0
 fishMaxDepth = 30. # Lowest depth where non-feeding fish will consume oxygen
 dt = 0.25*dxy # time step (seconds)
 
-print(modelDim)
-
 # Set up grid:
 cageDims = (math.ceil(modelDim/dxy), math.ceil(modelDim/dxy), math.ceil(depth/dz)+1)
 mask = cagemasking.circularMasking(cageDims, dxy, rad, False)
 nstates = cageDims[0]*cageDims[1]*cageDims[2]
+
+print("Domain dimensions: "+str(cageDims))
 
 # Current:
 currentReductionFactor = 0.8 # Multiplier for inside current as function of outside
@@ -226,12 +232,19 @@ diffKappaO2Z = diffKappaO2
 
 # Feed and oxygen affinity:
 #O2 affinity: Vertical distribution data based on telemetry (8 individuals):
-affProfile = [0.0110, 0.0913, 0.8601, 2.1406, 2.7774, 2.6903, 2.5195, 2.2987, 2.0137,
+affProfiles = {}
+affProfiles['vert'] = [0.0110, 0.0913, 0.8601, 2.1406, 2.7774, 2.6903, 2.5195, 2.2987, 2.0137,
                 1.7448, 1.5883, 1.3667, 1.2348, 1.0724, 0.9379, 0.7764, 0.7104, 0.5895, 0.5607, 0.4668, 0.3933,
                 0.4009, 0.2935, 0.1801, 0.1260, 0.0787, 0.0457, 0.0304]
+affProfiles['halfvert'] = [0.5055, 0.5457, 0.9301, 1.5703, 1.8887, 1.8452, 1.7597, 1.6494, 1.5069,
+                1.3724, 1.2942, 1.1834, 1.1174, 1.0362, 0.9690, 0.8882, 0.8552, 0.7947, 0.7804, 0.7334, 0.6966, 0.7004,
+                0.6467, 0.5901, 0.5630, 0.5393, 0.5228, 0.5152]
+affProfiles['flat'] = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 affDepths = [0.5000, 1.5000, 2.5000, 3.5000, 4.5000, 5.5000, 6.5000, 7.5000, 8.5000,
                 9.5000, 10.5000, 11.5000, 12.5000, 13.5000, 14.5000, 15.5000, 16.5000, 17.5000, 18.5000, 19.5000,
                 20.5000, 21.5000, 22.5000, 23.5000, 24.5000, 25.5000, 26.5000, 27.5000]
+affProfile = affProfiles[o2AffinityProfile]
 f = scipy.interpolate.interp1d(affDepths, affProfile, kind='linear', bounds_error=False,
                                fill_value=(affProfile[0], affProfile[-1]))
 affinityProfile = f(zValues)
@@ -260,8 +273,9 @@ o2AffSum = behaviour.setO2AffinityWithVerticalProfile(cageDims, dz, fishMaxDepth
 # Initialize advection routine:
 fcAdvect = advect.Advect(cageDims)
 o2Advect = advect.Advect(cageDims)
+if (varyAmbient):
+    o2Advect.setVaryAmbient(True, addRedMult, [cageDims[0], cageDims[1]/2], [1, 0])
 
-# TODO: only supports uniform current field
 
 
 startTime = datetime.datetime(initYear, initMonth, initDate, initHour, initMin, initSec, tzinfo=datetime.timezone.utc)
@@ -383,20 +397,18 @@ for i in range(0, n_steps):
                                            fill_value=(currentY0[0], currentY0[-1]))
             currentY = f(zValues)
 
-            currentfields.getProfileCurrentField(currentField, currentX, currentY)
-
-            #currentOffset[0] = currentReductionFactor*currentSpeed * math.sin(currentDir)
-            #currentOffset[1] = currentReductionFactor*currentSpeed * math.cos(currentDir)
-            #currentDirNow = currentDir
-            #currentSpeedNow = currentSpeed
+            if not useCurrentMagic:
+                currentfields.getProfileCurrentField(currentField, currentX, currentY)
+            else:
+                currentSpeeds = np.sqrt(np.multiply(currentX, currentX)+np.multiply(currentY, currentY))
+                currentDirs = np.arctan2(currentX, currentY)*180./np.pi
+                cmg.setCurrentField(currentField, currentSpeeds, currentDirs)
 
             #if doMpi and rank == N:  # If this is the twin model
             #    currentDirNow += (math.pi/180.)*30.  #  degrees offset
             #    currentSpeedNow *= 1.2  # 20% increase
             #    ambientValueO2[:] += 0.1
 
-            #currentOffset[0] = currentSpeedNow * math.sin(currentDir)
-            #currentOffset[1] = currentSpeedNow * math.cos(currentDir)
 
             # Current speed-dependent O2 diffusion:
             #diffKappaO2 = min(0.5, 10 * math.pow(currentSpeed, 2))
@@ -497,7 +509,7 @@ for i in range(0, n_steps):
     else:
         lostAll = 0.
 
-    fcAdvect.advectField(cageDims, o2, dt, dxy, dz, mask, 0., diffKappaO2_r, diffKappaO2Z_r,
+    o2Advect.advectField(cageDims, o2, dt, dxy, dz, mask, 0., diffKappaO2_r, diffKappaO2Z_r,
                                    currentField, currentOffset_r, feedingRate, 0., ambientValueO2_r)
 
     totalIntake, rho, o2ConsumptionRate = fishingestionTempProfile.calculateIngestion\

@@ -2,7 +2,6 @@ import numpy as np
 import math
 
 def circularMasking(dims, dxy, radius, maskBottom):
-    print(dims)
     mask = np.array(np.zeros(dims), dtype=np.bool8)
     # Find center of grid:
     center = ((dims[0]-1)/2.0, (dims[1]-1)/2.0)
