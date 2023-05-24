@@ -13,7 +13,7 @@ class CurrentMagic:
         self.vval = np.transpose(ncfile.variables['v'][:],(2,1,0))
         self.thetas = ncfile.variables['theta'][:]
 
-        print(self.uval.shape)
+        #print(self.uval.shape)
 
 
     def setCurrentField(self, field, speeds, angles):

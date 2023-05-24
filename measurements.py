@@ -48,11 +48,11 @@ def getFieldMeasurementModel(numel, npar, cageDims, o2Pos):
 
 def getSensorsToAssimilateBjoroya():
     # Return a tuple containing indexes of those oxygen sensors we want to use for assimilation:
-    #return (0, 1, 2) # Centre only
+    return (0, 1, 2) # Centre only
     #return (0, 3, 6, 9) # All at 5 m
     #return (1, 4, 7, 10)  # All at 10 m
     #return (4, 7, 10)  # Ring measurements at 10 m
-    return (0, 1, 2, 4, 7, 10)  # All at 10 m and all in centre
+    #return (0, 1, 2, 4, 7, 10)  # All at 10 m and all in centre
     #return (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11) # All sensors
 
 def setupSensorPositionsBjoroya(cageDims, dxy, dz, rad):
@@ -65,7 +65,8 @@ def setupSensorPositionsBjoroya(cageDims, dxy, dz, rad):
     angle3 = 246.8427
     sensorAngles = (0, 0, 0, angle1, angle1, angle1, angle2, angle2, angle2,
             angle3, angle3, angle3)
-    o2Rad = (0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1) # Distance from centre as fraction of cage radius
+    #o2Rad = (0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+    o2Rad = (0, 0, 0, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.95, 0.95, 0.95) # Distance from centre as fraction of cage radius
     o2Depth = (5, 10, 15, 5, 10, 15, 5, 10, 15, 5, 10, 15) # Sensor depth (m)
     o2Pos = np.zeros((len(o2Names), 3))
     for i in range(0, len(o2Names)):

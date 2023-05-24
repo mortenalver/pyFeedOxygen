@@ -91,7 +91,7 @@ def doAnalysis(comm, rank, N, cageDims, dxy, dz, rad, field, mask, t, ensNcFile,
 
         if localization:
             #Xloc1, Xloc2 = getLocalizationMatrix(cageDims, M, numel, 4)
-            Xloc1, Xloc2 = getLocalizationMatrix(cageDims, M, numel, localizationDist, localizationZMultiplier, currentOffset)
+            Xloc1, Xloc2 = getLocalizationMatrix(cageDims, M, numel, localizationDist, localizationZMultiplier)
 
         # Receive from other ensemble members:
         for j in range(1, N):
@@ -189,7 +189,7 @@ def computeCovariance(X, nstates, N, byState):
         cov = np.cov(matr)
 
 
-def getLocalizationMatrix(cageDims, M, numel, locDist, locZMultiplier, currentOffset):
+def getLocalizationMatrix(cageDims, M, numel, locDist, locZMultiplier):
     Xloc1 = np.zeros((M.shape[1], M.shape[0]))
     Xloc2 = np.zeros((M.shape[0], M.shape[0]))
     for i in range(M.shape[0]): # Loop over measurements
@@ -211,20 +211,7 @@ def getLocalizationMatrix(cageDims, M, numel, locDist, locZMultiplier, currentOf
                 ## No localization for parameter values:
                 Xloc1[j,i] = 1.
 
-                # # Test localization in x and y direction based on current direction in each component:
-                # if currentOffset[0] > 0:
-                #     edgeDistX = mCoord[0]
-                # else:
-                #     edgeDistX = cageDims[0]-1-mCoord[0]
-                # if currentOffset[1] > 0:
-                #     edgeDistY = mCoord[1]
-                # else:
-                #     edgeDistY = cageDims[1]-1-mCoord[1]
-                # Xloc1[j, i] = localizationValue(min((edgeDistX, edgeDistY)), locDist)
 
-                # Test "close to outer edge" localization for parameter (maybe suitable for ambient o2 value):
-                #edgeDist = min((mCoord[0], mCoord[1], cageDims[0]-1-mCoord[0], cageDims[1]-1-mCoord[1]))
-                #Xloc1[j, i] = localizationValue(edgeDist, locDist)
 
         # Set values for Xloc2:
         for j in range(M.shape[0]):  # Loop over measurements
@@ -240,9 +227,23 @@ def getLocalizationMatrix(cageDims, M, numel, locDist, locZMultiplier, currentOf
 
     return Xloc1, Xloc2
 
-def localizationValue(distance, locDist):
-    locFac = 0.5 #4.0
-    return 1-1/(1+math.exp(-locFac*(distance-locDist)))
+def localizationValue(dist, locDist):
+    #locFac = 0.5 #4.0
+    #return 1-1/(1+math.exp(-locFac*(distance-locDist)))
+
+    # Localization function used in Daniel's EnKF:
+    c = math.sqrt(10./3.)*locDist
+    frac = dist/c
+    if dist<c:
+        lval = -0.25*math.pow(frac,5.) + 0.5*math.pow(frac,4.) + (5./8.)*math.pow(frac,3.) - (5./3.)*math.pow(frac,2.) +1.
+    elif dist < 2*c:
+        lval = (1./12.)*math.pow(frac,5.) - 0.5*math.pow(frac,4.) + (5./8.)*math.pow(frac,3.) + (5./3.)*math.pow(frac,2.) - \
+            5.*frac + 4. - (2./3.)/frac
+    else:
+        lval = 0.
+
+    return lval
+
 
 def doTest(cageDims, field, t):
     numel = cageDims[0] * cageDims[1] * cageDims[2]
@@ -259,3 +260,4 @@ def doTest(cageDims, field, t):
     print(MX)
 
 
+#if __name__ == '__main__':

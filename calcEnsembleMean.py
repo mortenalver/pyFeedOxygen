@@ -9,8 +9,8 @@ import glob
 saveDir = "./bjoroya/"
 #saveDir = "./saga/"
 #simNamePrefix = "bjoroya_15_"
-#saveDir = "D:/nn9828k/pyFeedOxygen/bjoroya/tmp/"
-simNamePrefix = 'bjoroya_27j_1_'
+#saveDir = "D:/nn9828k/pyFeedOxygen/bjoroya/bjoroya/"
+simNamePrefix = 'test_VA_cutoff_'
 #simNamePrefix = 'bjoroya_asm_all_'
 
 def createNcFile(filename, oldNcfile, timeSteps):

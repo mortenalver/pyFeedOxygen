@@ -15,7 +15,7 @@ def calculateIngestion(cageDims, dt, feed, o2, affinity, o2Affinity, o2AffSum,
     b = 0.4  # Exponent for confusion factor
     c = 0.5  # Exponent for f_d factor
 
-    o2consumptionMult = 1.3  # This factor can be used to globally multiply the o2 consumption of the fish.
+    o2consumptionMult = 1.2*1.3  # This factor can be used to globally multiply the o2 consumption of the fish.
     U = 1.  # Swimming speed (body lengths/s)
 
     # We calculate O2 consumption according to a hybrid pattern consisting of two parts:

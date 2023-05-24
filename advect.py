@@ -4,9 +4,7 @@ import math
 class Advect:
 
     varyAmbient = False
-    ambRedMult = 0.
-    ambRedCenter = []
-    dsVector = []
+    affinityProfile = []
 
     def __init__(self, cageDims):
         self.advect = np.zeros(cageDims)
@@ -14,17 +12,18 @@ class Advect:
         #self.newValues = np.zeros(cageDims)
 
 
-    def advectField(self, cageDims, field, dt, dxy, dz, mask, sinkingSpeed, diffKappa, diffKappaZ,
+    def advectField(self, cageDims, xBounds, field, dt, dxy, dz, mask, sinkingSpeed, diffKappa, diffKappaZ,
                     currentSpeed, currentOffset,
                     sourceTerm, feedingRateMult, ambientValue):
 
-        self.calcAdvectAndDiff(cageDims, field, dxy, dz, mask, sinkingSpeed, diffKappa, diffKappaZ,
+        self.calcAdvectAndDiff(cageDims, xBounds, field, dxy, dz, mask, sinkingSpeed, diffKappa, diffKappaZ,
                                currentSpeed, currentOffset, ambientValue, dt)
 
         presum = 0.0
         postsum = 0.0
         for k in range(0, cageDims[2]):
-            for i in range(0, cageDims[0]):
+            #for i in range(0, cageDims[0]):
+            for i in range(xBounds[0], xBounds[1]):
                 for j in range(0, cageDims[1]):
                     presum = presum + field[i,j,k]
                     field[i,j,k] = field[i,j,k] + dt* (self.advect[i,j,k] + self.diffus[i,j,k])
@@ -88,14 +87,12 @@ class Advect:
 
         return sum
 
-    def setVaryAmbient(self, varyAmbient, ambRedMult, ambRedCenter, dsVector):
+    def setVaryAmbient(self, varyAmbient, affinityProfile):
         self.varyAmbient = varyAmbient
-        self.ambRedMult = ambRedMult
-        self.ambRedCenter = ambRedCenter
-        self.dsVector = dsVector
+        self.affinityProfile = affinityProfile
 
 
-    def calcAdvectAndDiff(self, cageDims, field, dxy, dz, mask, sinkingSpeed, diffKappa, diffKappaZ,
+    def calcAdvectAndDiff(self, cageDims, xBounds, field, dxy, dz, mask, sinkingSpeed, diffKappa, diffKappaZ,
                           currentSpeed, currentOffset, ambientValue, dt):
 
         ambientValueHere = np.zeros(ambientValue.shape)
@@ -109,10 +106,10 @@ class Advect:
         current = np.zeros((3,2))
 
         for k in range(0, cageDims[2]):
-            for i in range(0, cageDims[0]):
+            #for i in range(0, cageDims[0]):
+            for i in range(xBounds[0], xBounds[1]):
                 for j in range(0, cageDims[1]):
                     # Find local current. For each dimension we need the current on two edges:
-                    # TODO: handles uniform current field only
                     # TODO: walls based on mask matrix are not implemented
                     current = np.zeros((3, 2))
                     current[0, 0] = currentSpeed[i,j,k,0] + currentOffset[0]
@@ -127,11 +124,11 @@ class Advect:
                     if self.varyAmbient:
                         # Check if we are near an edge, otherwise the ambient value has no effect:
                         if (i<2 or j<2 or i>=cageDims[0]-2 or j>=cageDims[1]-2 or k<2 or k>=cageDims[2]-2):
-                            vecHere = [i-self.ambRedCenter[0], j-self.ambRedCenter[1]]
-                            dotProd = vecHere[0] * self.dsVector[0] + vecHere[1] * self.dsVector[1]
-                            ambRedValue = 0
-                            if (dotProd < 0):
-                                ambRedValue = -dotProd * self.ambRedMult * dxy
+                            currHere = 100.*np.sqrt(current[0, 0]*current[0, 0] + current[1, 0]*current[1, 0])
+                            omega_red = 0.35
+                            if currHere < 6.:
+                                omega_red = 1.85 - 0.25*currHere
+                            ambRedValue = ((cageDims[0] - i)/cageDims[0])*omega_red*self.affinityProfile[k]
                             ambientValueHere -= ambRedValue
 
                     # Define cell neighbourhood:
