@@ -24,14 +24,17 @@ def current_milli_time():
     return round(time.time() * 1000)
 
 if __name__ == '__main__':
+    # Get the start time
+    st = time.time()
+
     # Save information:
     saveDir = "./bjoroya/"
     #simNamePrefix = "test_internalmpi2_"
-    simNamePrefix = "shrt2_"
+    simNamePrefix = "shrt3_"
     #simNamePrefix = "bjoroya_23_magic_"
 
     # Duration of simulation (seconds)
-    t_end = 10 + 5*600 #1800 +50 #4*3600
+    t_end = 10 + 2*600 #1800 +50 #4*3600
 
     # Start time:
     initYear = 2022
@@ -45,7 +48,7 @@ if __name__ == '__main__':
     rad = 25.#55.0
     depth = 25.0
     totDepth = 25.0
-    dxy = 4.0 # Horizontal resolution
+    dxy = 2.0 # Horizontal resolution
     dz = dxy # Vertical resolution
     modelDim = 2*(rad+4*dxy) #60.#120.0
     fishMaxDepth = 20. # Lowest depth where non-feeding fish will consume oxygen
@@ -54,7 +57,7 @@ if __name__ == '__main__':
 
     # Storage intervals (seconds):
     storeIntervalScalars = 60 # 60
-    storeIntervalFields = 600 #600
+    storeIntervalFields = 600
     txtUpdateInterval = 200
 
 
@@ -166,7 +169,9 @@ if __name__ == '__main__':
     # If not internally parallelizing, it should cover the entire dimension:
     xBounds = (0, cageDims[0])
     if doInternalMpi:
-        splits = mpiInternal.getSplits(cageDims[0], N)
+        splits, paddedSplits = mpiInternal.getSplits(cageDims[0], N)
+        print(splits)
+        print(paddedSplits)
         xBounds = splits[rank]
         print("Rank "+str(rank)+" xBounds="+str(xBounds))
 
@@ -647,3 +652,9 @@ if __name__ == '__main__':
         print("TotFeedAdded = "+format(totFeedAdded))
         print("Total ingestion: "+format(totI, ".1f"))
         print("Feed wastage: "+format(100.*(totFeedAdded-totI)/totFeedAdded, ".2f")+"%")
+
+        # get the end time
+        et = time.time()
+        # get the execution time
+        elapsed_time = et - st
+        print('Execution time:', elapsed_time, 'seconds')
